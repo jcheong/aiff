@@ -1,0 +1,13 @@
+Flask
+python-dotenv
+google-generativeai
+langchain-google-genai
+langchain-community
+langchain
+chromadb
+PyPDFForm
+pypdf # For basic PDF text extraction
+uuid
+Flask-Cors # To allow frontend requests
+pillow # For potential future image handling (though not used in MVP text extraction)
+google-cloud-vision

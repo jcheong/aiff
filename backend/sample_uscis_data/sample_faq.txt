@@ -1,0 +1,156 @@
+# Sample FAQ Content for Form I-765
+
+Q: What is Form I-765?
+A: Form I-765 is used to request an Employment Authorization Document (EAD) from USCIS.
+
+Q: What is an EAD?
+A: An Employment Authorization Document (EAD) is a card that proves you are allowed to work in the U.S.
+
+Q: Who needs to file Form I-765?
+A: Noncitizens in the U.S. who want to request work authorization and meet eligibility criteria under certain categories.
+
+Q: Who is eligible to apply for an EAD?
+A: Eligible applicants include asylum seekers, DACA recipients, TPS beneficiaries, F-1 students, adjustment of status applicants, and more.
+
+Q: Can green card holders file Form I-765?
+A: No, lawful permanent residents do not need an EAD to work.
+
+Q: What is the difference between an EAD and a green card?
+A: A green card grants permanent residence and employment rights; an EAD grants temporary work authorization.
+
+Q: How do I choose the correct eligibility category on Form I-765?
+A: Refer to the USCIS instructions and determine your immigration status. Each status has a corresponding code (e.g., (c)(9) for AOS).
+
+Q: What is category (c)(9)?
+A: It is the code for adjustment of status applicants (Form I-485 pending).
+
+Q: What is category (c)(8)?
+A: This applies to asylum applicants with pending cases.
+
+Q: What is category (a)(12)?
+A: This is for Temporary Protected Status (TPS) beneficiaries.
+
+Q: What is category (a)(5)?
+A: This is for individuals granted asylum.
+
+Q: Can F-1 students file Form I-765?
+A: Yes, for OPT (Optional Practical Training) and STEM extensions under (c)(3)(A), (B), or (C).
+
+Q: How much is the fee for Form I-765?
+A: It depends on the category. As of 2024, most applicants pay $520.
+
+Q: Are fee waivers available for Form I-765?
+A: Yes, but only for specific categories such as asylum applicants or certain humanitarian statuses.
+
+Q: How do I request a fee waiver?
+A: File Form I-912, Request for Fee Waiver, along with I-765.
+
+Q: What documents do I need to include with Form I-765?
+A: Typically: passport photo, ID, previous EAD (if any), I-94, and documents proving eligibility.
+
+Q: What size photo should I include?
+A: Two passport-style color photos (2x2 inches) with your name and A-number written lightly on the back.
+
+Q: Can I file I-765 online?
+A: Yes, for certain categories (e.g., adjustment of status), but not all. Check the USCIS website for eligibility.
+
+Q: How do I check the status of my EAD application?
+A: Go to uscis.gov and enter your receipt number in the Case Status tool.
+
+Q: What is a receipt notice?
+A: A confirmation from USCIS that they received your application (Form I-797C).
+
+Q: What is a biometrics appointment?
+A: Some applicants may be required to attend a USCIS appointment for fingerprints and photos.
+
+Q: How long does it take to receive an EAD?
+A: Typically 2–8 months, depending on your category and service center.
+
+Q: Can I work while my I-765 is pending?
+A: Only if you qualify for an automatic extension or have other valid work authorization.
+
+Q: What is the 180-day automatic extension?
+A: Renewals in certain categories receive a temporary extension if filed before the current EAD expires.
+
+Q: What happens if my EAD expires before I get the renewal?
+A: If eligible for the 180-day extension, you can continue working. If not, you must stop working until the new EAD arrives.
+
+Q: What is the validity period of an EAD?
+A: Usually 1 to 2 years, depending on category and discretion of USCIS.
+
+Q: Can I travel while my I-765 is pending?
+A: Yes, but you must have a valid travel document (e.g., Advance Parole). The EAD alone does not authorize travel.
+
+Q: Can I expedite Form I-765?
+A: Yes, under limited circumstances (severe financial loss, emergencies, etc.) and with supporting documentation.
+
+Q: How do I request an expedite?
+A: Contact USCIS through their contact center or submit a written request with evidence.
+
+Q: What happens if my I-765 is denied?
+A: You will receive a denial notice. There's no appeal, but you may refile if eligible.
+
+Q: Can I reapply after a denial?
+A: Yes, if your eligibility remains and you correct the issues that led to the denial.
+
+Q: What if I change my address during processing?
+A: File Form AR-11 online or update your address through your USCIS account.
+
+Q: Can I work for any employer with an EAD?
+A: Generally, yes. EADs allow open market employment unless your category has restrictions.
+
+Q: Does the EAD authorize self-employment?
+A: Yes, most EADs allow self-employment unless specifically restricted.
+
+Q: Can I renew my EAD early?
+A: Yes. File at least 90–180 days before expiration, depending on your category.
+
+Q: Do I need a lawyer to file Form I-765?
+A: Not required, but it may help if your case is complex or you’re unsure of your category.
+
+Q: Can I use a notario to help with I-765?
+A: Be cautious—only licensed attorneys or accredited representatives should assist with immigration forms.
+
+Q: What is the difference between Form I-765 and Form I-9?
+A: Form I-765 requests work authorization; Form I-9 is filled out by employers to verify authorization.
+
+Q: What is the USCIS lockbox address?
+A: It depends on your eligibility category and mailing method. Check the current USCIS address for your case type.
+
+Q: Will I get a tracking number when my EAD ships?
+A: Yes, USCIS typically provides tracking information through your USCIS account or email.
+
+Q: What should I do if my EAD card is lost or stolen?
+A: File a replacement with a new Form I-765 and applicable fee.
+
+Q: How do I correct an error on my EAD?
+A: If USCIS made the error, request a correction at no cost. If it's your error, refile with a fee.
+
+Q: What is a combo card?
+A: A card that combines Advance Parole and EAD, issued to adjustment of status applicants.
+
+Q: Can I get an EAD based on marriage to a U.S. citizen?
+A: Yes, if you filed Form I-485, you can apply for EAD under (c)(9).
+
+Q: What if I apply for asylum—can I get an EAD?
+A: Yes, you may apply 150 days after filing your asylum application (Form I-589).
+
+Q: How do I prove eligibility for EAD as a TPS applicant?
+A: Submit evidence of TPS status or pending application, plus identity documents.
+
+Q: Can DACA recipients apply for an EAD?
+A: Yes, if USCIS is accepting DACA requests at the time. EAD is granted under (c)(33).
+
+Q: Is there a grace period after EAD expires?
+A: No official grace period unless you're eligible for an automatic extension.
+
+Q: What happens if I work without an EAD?
+A: Working without authorization can have serious immigration consequences.
+
+Q: Can I file multiple I-765 forms?
+A: Only if applying under different categories or correcting an error. You cannot have multiple active EADs for the same category.
+
+Q: How do I find updates on I-765 processing times?
+A: Visit https://egov.uscis.gov/processing-times/ and select Form I-765 and your service center.
+
+Disclaimer: This information is for general informational purposes only and does not constitute legal advice. Immigration laws and procedures are complex and change frequently. Consult with a qualified immigration attorney for advice specific to your situation. Always refer to the official USCIS website for the most up-to-date information and forms.

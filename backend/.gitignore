@@ -1,0 +1,7 @@
+.env
+venv/
+vector_store_data/
+templates/
+__pycache__/
+filled_forms/
+uploads/
