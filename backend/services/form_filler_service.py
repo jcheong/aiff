@@ -188,7 +188,7 @@ def fill_i765_form(session_id: str) -> str:
         # PyPDFForm will ignore any keys in extracted_data that aren't actually in the PDF.
         filled_pdf.fill(
             extracted_data,
-            editable=True
+            adobe_mode=True
         )
 
         # Save the filled PDF using .read()
