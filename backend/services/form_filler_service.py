@@ -8,26 +8,28 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 
 # Use absolute imports
-from backend.services.document_service import get_session_documents_content, cleanup_session_files
+from backend.services.document_service import get_session_documents_content # Removed cleanup_session_files, app.py handles it
 
 # --- Path Setup ---
 _service_dir = os.path.dirname(os.path.abspath(__file__))
 _backend_dir = os.path.dirname(_service_dir)
 
-PDF_TEMPLATE_DIR_REL = os.getenv("PDF_TEMPLATE_DIR", "templates")
-PDF_TEMPLATE_NAME = os.getenv("PDF_TEMPLATE_NAME", "i-765.pdf")
+# Get directories from .env, with defaults
+FORM_CONFIGS_DIR_REL = os.getenv("FORM_CONFIGS_DIR", "form_configs")
 FILLED_FORM_FOLDER_REL = os.getenv("FILLED_FORM_FOLDER", "filled_forms")
 
-PDF_TEMPLATE_DIR_ABS = os.path.join(_backend_dir, PDF_TEMPLATE_DIR_REL)
+FORM_CONFIGS_DIR_ABS = os.path.join(_backend_dir, FORM_CONFIGS_DIR_REL)
 FILLED_FORM_FOLDER_ABS = os.path.join(_backend_dir, FILLED_FORM_FOLDER_REL)
 
 os.makedirs(FILLED_FORM_FOLDER_ABS, exist_ok=True)
+os.makedirs(FORM_CONFIGS_DIR_ABS, exist_ok=True) # Ensure form configs dir exists
 # --- End Path Setup ---
 
 
 # --- LLM Initialization ---
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 try:
+    # Consider making model name configurable or part of form_config if different forms need different models
     extraction_llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", google_api_key=GOOGLE_API_KEY, temperature=0.0)
     print("Gemini LLM for extraction (gemini-2.0-flash-lite) initialized.")
 except Exception as e:
@@ -36,45 +38,19 @@ except Exception as e:
 # --- End LLM Initialization ---
 
 
-# --- Target Fields Definition ---
-# Define PDF keys directly, with descriptions instructing LLM on 1/0 logic.
-# CRITICAL: Verify these keys EXACTLY match your PDF inspection results.
-I765_TARGET_FIELDS = {
-    # PDF Keys mapped to descriptions for LLM
-    "Line1a_FamilyName[0]": "Your Full Name: Family Name (Last Name)",
-    "Line1b_GivenName[0]": "Your Full Name: Given Name (First Name). The first word is the Given Name, and the rest of the words are the Middle Name",
-    "Line1c_MiddleName[0]": "Your Full Name: Middle Name. The first word is the Given Name, and the rest of the words are the Middle Name",
+# --- Prompt Template Definition (Remains Generic) ---
+EXTRACTION_PROMPT_TEMPLATE_STR = """
+{system_prompt}
 
-    "Line9_Checkbox[1]": "Gender - Male Option: Respond with 1 if text indicates Male. Respond with 0 if text indicates Female. Otherwise respond 0. Value has to be a numerical",
-    "Line9_Checkbox[0]": "Gender - Female Option: Respond with 1 if text indicates Female. Respond with 0 if text indicates Male. Otherwise respond 0. Value has to be a numerical",
-
-    "Line17a_CountryOfBirth[0]": "Your Country or Countries of Citizenship or Nationality. Always determine the country name",
-
-    "Line18a_CityTownOfBirth[0]": "Your City of Birth",
-    "Line18b_CityTownOfBirth[0]": "Your State or Province of Birth. In the absence of a State or Province of Birth, use the Your City and Country of Birth to find it",
-    "Line18c_CountryOfBirth[0]": "Your Country of Birth. Always determine the country name",
-    "Line19_DOB[0]": "Your Date of Birth. Format MM/DD/YYYY",
-
-    "Line20b_Passport[0]": "Your Passport Number",
-    "Line20d_CountryOfIssuance[0]": "The Country That Issued Your Passport or Travel Document. Always determine the country name",
-    "Line20e_ExpDate[0]": "The Expiration Date for your Passport or Travel Document. Format MM/DD/YYYY",
-
-    # Add/remove other PDF fields as necessary
-}
-# --- End Target Fields Definition ---
-
-
-# --- Prompt Template Definition ---
-# General prompt template - relies on detailed descriptions in I765_TARGET_FIELDS
-EXTRACTION_PROMPT_TEMPLATE = """
-Based ONLY on the following document text, extract the information requested for filling Form I-765 (Application for Employment Authorization).
+Based ONLY on the following document text, extract the information requested for filling the specified form.
 Provide the output STRICTLY as a JSON object where keys are the field identifiers and values are the extracted information.
-The field identifiers to use are: {field_keys}
-Read the specific instructions in the field descriptions below carefully, especially for options like checkboxes.
+The field identifiers to use are: {field_ids}
+
+Read the specific instructions in the field descriptions below carefully.
 Descriptions of the fields:
 {field_descriptions}
 
-If information for a specific field cannot be determined according to its description, use the value "NOT_FOUND". Do not make up information.
+If information for a specific field cannot be determined according to its description, use the value "NOT_FOUND" or omit the key. Do not make up information.
 
 Document Text:
 ---
@@ -85,51 +61,87 @@ Extracted JSON Data:
 """
 
 EXTRACTION_PROMPT = PromptTemplate(
-    template=EXTRACTION_PROMPT_TEMPLATE,
-    input_variables=["document_content", "field_keys", "field_descriptions"]
+    template=EXTRACTION_PROMPT_TEMPLATE_STR,
+    input_variables=["system_prompt", "document_content", "field_ids", "field_descriptions"]
 )
 # --- End Prompt Template Definition ---
 
+def load_form_config(form_type: str) -> dict:
+    """Loads the JSON configuration for a given form_type."""
+    config_filename = f"{form_type}.json"
+    config_path = os.path.join(FORM_CONFIGS_DIR_ABS, config_filename)
+    print(f"Attempting to load form configuration from: {config_path}")
 
-# --- Data Extraction Function ---
-def extract_data_with_llm(document_content: str) -> dict:
-    """Uses LLM to extract data based on the predefined I-765 fields and prompt."""
+    if not os.path.exists(config_path):
+        print(f"Error: Form configuration file not found at {config_path}")
+        raise FileNotFoundError(f"Configuration for form type '{form_type}' not found.")
+    
+    try:
+        with open(config_path, 'r') as f:
+            config_data = json.load(f)
+        print(f"Successfully loaded configuration for form '{form_type}'.")
+        return config_data
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON from {config_path}: {e}")
+        raise ValueError(f"Invalid JSON in configuration for form type '{form_type}'.")
+    except Exception as e:
+        print(f"Unexpected error loading form configuration {config_path}: {e}")
+        raise RuntimeError(f"Could not load configuration for '{form_type}'.")
+
+
+def _extract_data_with_llm_dynamic(document_content: str, form_config: dict) -> dict:
+    """Uses LLM to extract data based on the dynamically loaded form configuration."""
     if not extraction_llm:
         raise ConnectionError("Extraction LLM not initialized.")
     if not document_content:
         print("No document content provided for extraction.")
         return {}
 
-    # Use the fields defined for LLM extraction (includes both gender checkboxes now)
-    field_keys = list(I765_TARGET_FIELDS.keys())
-    field_descriptions = "\n".join([f"- {key}: {desc}" for key, desc in I765_TARGET_FIELDS.items()])
+    field_definitions = form_config.get('fields', [])
+    if not field_definitions:
+        print(f"No field definitions found in configuration for form '{form_config.get('form_id', 'Unknown')}'.")
+        return {}
+
+    field_ids = [field['id'] for field in field_definitions]
+    field_descriptions = "\n".join([f"- {field['id']}: {field['description_for_llm']}" for field in field_definitions])
+    
+    system_prompt = form_config.get('description_for_llm_system_prompt', 
+                                    "You are an expert at extracting specific information from user-provided text to fill out forms accurately.")
 
     extraction_chain = LLMChain(llm=extraction_llm, prompt=EXTRACTION_PROMPT)
 
-    print("Invoking LLM for I-765 data extraction...")
+    print(f"Invoking LLM for data extraction for form '{form_config.get('form_id', 'Unknown')}'...")
     try:
         response = extraction_chain.invoke({
+            "system_prompt": system_prompt,
             "document_content": document_content,
-            "field_keys": str(field_keys),
+            "field_ids": str(field_ids), # Pass as string representation of list
             "field_descriptions": field_descriptions
         })
-        llm_output = response.get('text', '')
-        print("LLM I-765 extraction response received.")
+        llm_output_text = response.get('text', '')
+        print(f"LLM extraction response received for form '{form_config.get('form_id', 'Unknown')}'.")
 
         try:
-            json_response_cleaned = llm_output.strip().lstrip('```json').lstrip('```').rstrip('```')
-            extracted_data = json.loads(json_response_cleaned)
-            print(f"Parsed extracted data: {extracted_data}")
+            # Clean potential markdown code block fences
+            json_response_cleaned = llm_output_text.strip().lstrip('```json').lstrip('```').rstrip('```')
+            if not json_response_cleaned: # Handle empty string case
+                 print("LLM returned an empty string after cleaning.")
+                 return {"error": "LLM returned empty parsable output."}
+            
+            extracted_data_raw = json.loads(json_response_cleaned)
+            print(f"Parsed extracted data (raw): {extracted_data_raw}")
 
-            # Filter based on target fields AND remove "NOT_FOUND" values.
-            # Keep '0' values provided by the LLM for checkboxes.
-            final_data = {k: v for k, v in extracted_data.items()
-                          if k in I765_TARGET_FIELDS and v != "NOT_FOUND"}
-            return final_data # Should contain keys for both checkboxes with '1' or '0'
+            # Filter out "NOT_FOUND" values and ensure keys are expected field_ids
+            # LLM is expected to return keys matching field['id']
+            final_data = {
+                k: v for k, v in extracted_data_raw.items()
+                if k in field_ids and (v is not None and str(v).upper() != "NOT_FOUND")
+            }
+            return final_data
 
         except json.JSONDecodeError as json_e:
             print(f"Error decoding LLM JSON response: {json_e}")
-            print(f"LLM Raw Output was: {llm_output}")
+            print(f"LLM Raw Output was: {llm_output_text}")
             return {"error": "Failed to parse extraction result from LLM"}
         except Exception as parse_e:
             print(f"Unexpected error parsing LLM response: {parse_e}")
@@ -137,74 +149,124 @@ def extract_data_with_llm(document_content: str) -> dict:
 
     except Exception as llm_e:
         print(f"Error during LLM data extraction call: {llm_e}")
-        if "API key not valid" in str(llm_e):
+        if "API key not valid" in str(llm_e): # Be careful with error string matching
             raise ConnectionError("Extraction failed: Invalid Google API Key.")
-        raise RuntimeError(f"LLM extraction failed: {llm_e}") from llm_e
-# --- End Data Extraction Function ---
+        raise RuntimeError(f"LLM extraction failed: {llm_e}")
 
 
-# --- Form Filling Function ---
-def fill_i765_form(session_id: str) -> str:
+def _map_llm_data_to_pdf_fields(llm_extracted_data: dict, form_config_fields: list) -> dict:
+    """Maps data extracted by LLM (keyed by field 'id') to PDF field names."""
+    data_for_pdf = {}
+    for field_def in form_config_fields:
+        field_id = field_def['id']
+        pdf_field_name = field_def['pdf_field_name']
+        data_type = field_def.get('data_type', 'text')
+        
+        llm_value = llm_extracted_data.get(field_id)
+
+        if llm_value is None or str(llm_value).upper() == "NOT_FOUND":
+            continue # Skip if not found or explicitly marked as not found by LLM
+
+        if data_type == 'boolean_checkbox':
+            # Assuming LLM returns "Yes", "True", true, "1" for checked
+            # and "No", "False", false, "0" for unchecked.
+            # Or simply if the value is affirmative.
+            affirmative_responses = ['yes', 'true', '1', True] # Case-insensitive check
+            if str(llm_value).lower() in affirmative_responses:
+                data_for_pdf[pdf_field_name] = field_def.get('checkbox_true_value_for_pdf', True) # Use True or specific value like "1", "Yes"
+            # else: if PyPDFForm needs an explicit 'off' value, handle here. Usually, not adding the key means unchecked.
+        elif data_type == 'boolean_radio':
+            # Example: "radio_options": { "llm_choice_value": {"pdf_field_name": "ActualRadioField", "value_for_pdf": "ExportValue"} }
+            # This part needs more specific logic based on how radio_options is structured in your JSON.
+            # For simplicity, assuming llm_value directly maps to a key in radio_options which then gives the target field and value.
+            # This is a placeholder for more complex radio button logic.
+            # A simpler radio approach: LLM extracts the value that should be selected, e.g., "OptionA".
+            # The config then maps "OptionA" to the PDF field name for that radio button and its 'on' value.
+            # For now, let's assume direct mapping if llm_value is the export value for a radio button group field.
+            # This part might need refinement based on actual PDF structure for radio buttons.
+            # A common pattern for radio buttons in PyPDFForm is to set the group field to the chosen option's export value.
+            data_for_pdf[pdf_field_name] = str(llm_value) # Simplistic for now
+        else: # Default for text, date, number etc.
+            data_for_pdf[pdf_field_name] = str(llm_value) # Ensure it's a string for PyPDFForm, or format as needed (e.g. dates)
+            
+            # Potential post-processing based on data_type (e.g., formatting dates, converting to uppercase)
+            if data_type == 'text_uppercase':
+                data_for_pdf[pdf_field_name] = str(llm_value).upper()
+            # Add more type-specific formatting here if needed
+
+    return data_for_pdf
+
+
+def fill_dynamic_form(session_id: str, form_type: str) -> dict:
     """
-    Orchestrates document retrieval, data extraction (including direct 1/0 for checkboxes),
-    and PDF filling for Form I-765. Relies on LLM to provide correct values for all fields.
-    Uses absolute paths calculated from the backend directory.
-    Returns the absolute path to the filled PDF file.
+    Orchestrates document retrieval, dynamic data extraction, and PDF filling.
+    Returns a dictionary with 'path' to the filled PDF and 'download_filename'.
     """
-    print(f"Starting Form I-765 filling process for session: {session_id}")
+    print(f"Starting dynamic form filling process for form '{form_type}', session: '{session_id}'")
 
-    template_path_abs = os.path.join(PDF_TEMPLATE_DIR_ABS, PDF_TEMPLATE_NAME)
+    try:
+        form_config = load_form_config(form_type)
+    except (FileNotFoundError, ValueError, RuntimeError) as e:
+        # These errors are specific and should be propagated to app.py to return appropriate HTTP status
+        print(f"Configuration error for form '{form_type}': {e}")
+        raise e 
+
+    # 1. Get aggregated text content
+    document_content = get_session_documents_content(session_id)
+    llm_extracted_data = {}
+    if not document_content:
+        print(f"No document content found for session '{session_id}'. Proceeding with potentially empty data for PDF.")
+    else:
+        # 2. Extract data using LLM
+        try:
+            llm_extracted_data = _extract_data_with_llm_dynamic(document_content, form_config)
+            if "error" in llm_extracted_data: # Check if LLM extraction itself reported an error
+                raise ValueError(f"Data extraction failed: {llm_extracted_data['error']}")
+        except (ConnectionError, RuntimeError, ValueError) as e:
+             print(f"Form filling aborted due to extraction error: {e}")
+             raise e # Propagate to app.py
+
+    # 3. Map LLM extracted data to PDF field names and values
+    data_for_pdf = _map_llm_data_to_pdf_fields(llm_extracted_data, form_config.get('fields', []))
+    print(f"Data prepared for PDF filling: {data_for_pdf}")
+
+    # 4. Fill the PDF form
+    template_file_path_rel = form_config.get('template_path')
+    if not template_file_path_rel:
+        raise ValueError(f"No 'template_path' defined in configuration for form '{form_type}'.")
+    
+    template_path_abs = os.path.join(_backend_dir, template_file_path_rel)
     print(f"Using PDF template: {template_path_abs}")
 
     if not os.path.exists(template_path_abs):
         print(f"Error: PDF template not found at {template_path_abs}")
-        raise FileNotFoundError(f"PDF template '{PDF_TEMPLATE_NAME}' not found at expected location.")
+        raise FileNotFoundError(f"PDF template '{template_file_path_rel}' as specified in config for '{form_type}' not found.")
 
-    # 1. Get aggregated text content
-    document_content = get_session_documents_content(session_id)
-    extracted_data = {} # Initialize empty dict
-    if not document_content:
-        print(f"No document content found for session {session_id}. Proceeding with empty form.")
-    else:
-        # 2. Extract data using LLM
-        try:
-            # LLM now directly extracts values for PDF fields, including '1' or '0' for checkboxes
-            extracted_data = extract_data_with_llm(document_content)
-            if "error" in extracted_data:
-                raise ValueError(f"Data extraction failed: {extracted_data['error']}")
-        except (ConnectionError, RuntimeError, ValueError) as e:
-             print(f"Form filling aborted due to extraction error: {e}")
-             raise e
-
-    # REMOVED the Python mapping logic for gender here.
-    print(f"Data extracted and prepared for PDF filling: {extracted_data}") # Log the final data dict going to PyPDFForm
-
-    # 3. Fill the PDF form using PyPDFForm
     try:
+        # Ensure session-specific output directory exists under the main filled_forms folder
         session_filled_form_dir_abs = os.path.join(FILLED_FORM_FOLDER_ABS, session_id)
         os.makedirs(session_filled_form_dir_abs, exist_ok=True)
 
-        output_pdf_filename = f"{session_id}-filled-{PDF_TEMPLATE_NAME}"
+        # Sanitize form_type for use in filename if it contains spaces or special chars
+        safe_form_type_filename = "".join(c if c.isalnum() else "_" for c in form_type)
+        output_pdf_filename = f"{session_id}-filled-{safe_form_type_filename}.pdf"
         output_pdf_path_abs = os.path.join(session_filled_form_dir_abs, output_pdf_filename)
 
-        filled_pdf = FormWrapper(template_path_abs)
-
-        # Fill using the extracted_data dictionary directly.
-        # PyPDFForm will ignore any keys in extracted_data that aren't actually in the PDF.
-        filled_pdf.fill(
-            extracted_data,
-            adobe_mode=True
+        pdf_wrapper = FormWrapper(template_path_abs)
+        pdf_wrapper.fill(
+            data_for_pdf,
+            # adobe_mode=True # Keep if it was beneficial, PyPDFForm default is usually fine
         )
 
-        # Save the filled PDF using .read()
         with open(output_pdf_path_abs, "wb+") as output_file:
-            output_file.write(filled_pdf.read()) # Use .read() here
+            output_file.write(pdf_wrapper.read())
 
-        print(f"Filled I-765 PDF saved to: {output_pdf_path_abs}")
-        return output_pdf_path_abs
+        print(f"Filled PDF for form '{form_type}' saved to: {output_pdf_path_abs}")
+        
+        download_filename = f"filled_{safe_form_type_filename}_{session_id}.pdf" # More unique download name
+        return {"path": output_pdf_path_abs, "download_filename": download_filename}
 
     except Exception as pdf_e:
         print(f"Error during PDF processing for {template_path_abs}: {pdf_e}")
-        print("Ensure keys in I765_TARGET_FIELDS match actual PDF field names and required values (e.g., '1' / '0' for checkboxes) are correct.")
-        raise IOError(f"Failed to fill or save the I-765 PDF form: {pdf_e}") from pdf_e
-# --- End Form Filling Function ---
+        # Consider logging more details about data_for_pdf here for debugging
+        raise IOError(f"Failed to fill or save the PDF form '{form_type}': {pdf_e}")

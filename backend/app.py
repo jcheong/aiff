@@ -4,6 +4,8 @@ from flask import Flask, request, jsonify, send_file, after_this_request
 from flask_cors import CORS
 from dotenv import load_dotenv
 import sys
+import json
+import glob
 
 # --- Adjust Path Loading for .env ---
 # Get the directory where app.py is located
@@ -22,9 +24,9 @@ from backend.vector_store import chroma_db
 # Use paths relative to the backend directory where app.py lives
 UPLOAD_FOLDER = os.path.join(backend_dir, os.getenv("UPLOAD_FOLDER", "uploads"))
 FILLED_FORM_FOLDER = os.path.join(backend_dir, os.getenv("FILLED_FORM_FOLDER", "filled_forms"))
-# PDF_TEMPLATE_DIR is likely relative to backend dir too, adjust if needed in form_filler_service
-# Ensure PDF_TEMPLATE_NAME is just the filename in .env
-PDF_TEMPLATE_NAME = os.getenv("PDF_TEMPLATE_NAME", "i-765.pdf")
+_app_dir = os.path.dirname(os.path.abspath(__file__)) 
+FORM_CONFIGS_DIR_REL = os.getenv("FORM_CONFIGS_DIR", "form_configs")
+FORM_CONFIGS_DIR_ABS = os.path.join(_app_dir, FORM_CONFIGS_DIR_REL)
 # --- End Path Adjustment ---
 
 print(f"UPLOAD_FOLDER set to: {UPLOAD_FOLDER}")
@@ -104,6 +106,57 @@ def handle_upload():
         return jsonify({"error": "An unexpected error occurred during upload."}), 500
 
 
+@app.route('/api/list-forms', methods=['GET'])
+def list_available_forms():
+    available_forms = []
+    try:
+        # Ensure the configuration directory exists
+        if not os.path.isdir(FORM_CONFIGS_DIR_ABS):
+            print(f"Error: Form configurations directory not found at {FORM_CONFIGS_DIR_ABS}")
+            # It might be better to return an empty list or a specific error code
+            # depending on how you want the frontend to handle this.
+            return jsonify({"error": "Form configurations directory not found.", "path_checked": FORM_CONFIGS_DIR_ABS}), 500
+
+        # Scan for .json files in the form_configs directory
+        # Adjust the pattern if your config files might have different casing, e.g., "*.json" or "*.JSON"
+        config_files_pattern = os.path.join(FORM_CONFIGS_DIR_ABS, "*.json")
+        config_files = glob.glob(config_files_pattern)
+        
+        if not config_files:
+            print(f"No .json configuration files found in {FORM_CONFIGS_DIR_ABS}")
+            # Return empty list if no configs are found, which is not necessarily an error.
+            return jsonify([]), 200
+
+        for config_file_path in config_files:
+            try:
+                with open(config_file_path, 'r', encoding='utf-8') as f: # Added encoding
+                    config_data = json.load(f)
+                
+                form_id = config_data.get('form_id')
+                form_name = config_data.get('form_name') # This is the user-friendly name
+
+                if form_id and form_name:
+                    available_forms.append({"id": form_id, "name": form_name})
+                else:
+                    # Log if a JSON file is missing required fields, but don't break the whole list
+                    file_name = os.path.basename(config_file_path)
+                    print(f"Warning: Config file '{file_name}' is missing 'form_id' or 'form_name'. Skipping.")
+
+            except json.JSONDecodeError:
+                file_name = os.path.basename(config_file_path)
+                print(f"Warning: Could not decode JSON from '{file_name}'. Skipping.")
+            except Exception as e: # Catch more general errors during file processing
+                file_name = os.path.basename(config_file_path)
+                print(f"Warning: Error processing config file '{file_name}': {e}. Skipping.")
+        
+        return jsonify(available_forms), 200
+
+    except Exception as e:
+        # Catch-all for unexpected errors in the route logic itself
+        print(f"Error in /api/list-forms endpoint: {e}")
+        return jsonify({"error": "An unexpected error occurred while listing forms."}), 500
+
+
 @app.route('/api/fill-form', methods=['POST'])
 def handle_fill_form():
     """Triggers form filling based on session documents and returns the filled PDF."""
@@ -114,59 +167,72 @@ def handle_fill_form():
     form_type = data['form_type']
     session_id = data['session_id']
 
-    # MVP Restriction: Only allow I-765
-    if form_type.upper() != "I-765": # <--- CHANGED Form number
-        return jsonify({"error": "MVP only supports 'I-765' form type."}), 400 # <--- CHANGED Error message
+    # Removed MVP Restriction:
+    # No longer restricting to "I-765" only.
+    # The form_filler_service will handle whether the form_type is supported.
 
-    print(f"Received request to fill form {form_type} for session {session_id}")
+    print(f"Received request to fill form '{form_type}' for session '{session_id}'")
 
     try:
-        # Call the updated service function
-        filled_pdf_path = form_filler_service.fill_i765_form(session_id) # <--- CHANGED Function call
+        # Call a new generic service function that accepts form_type
+        # This function will be responsible for loading the correct form config
+        # and using it to process the form.
+        # It should return the path to the filled PDF and ideally the suggested download filename.
+        filled_pdf_details = form_filler_service.fill_dynamic_form(session_id, form_type)
+        # Let's assume fill_dynamic_form returns a dictionary like:
+        # {"path": "/path/to/filled_form.pdf", "download_filename": "filled_i-765_john_doe.pdf"}
+        # Or, for simplicity now, just the path, and we construct a generic download name.
 
-        if not filled_pdf_path or not os.path.exists(filled_pdf_path):
-             print(f"Form filling process completed but no valid PDF path returned for session {session_id}.")
-             document_service.cleanup_session_files(session_id)
-             return jsonify({"error": "Form filling failed to produce a file."}), 500
+        if not filled_pdf_details or "path" not in filled_pdf_details or not filled_pdf_details["path"] or not os.path.exists(filled_pdf_details["path"]):
+             print(f"Form filling process for '{form_type}' completed but no valid PDF path returned for session '{session_id}'.")
+             document_service.cleanup_session_files(session_id) # Cleanup uploaded docs
+             return jsonify({"error": f"Form filling for '{form_type}' failed to produce a file."}), 500
 
-        # Schedule cleanup after the file is sent (same logic as before)
+        filled_pdf_path = filled_pdf_details["path"]
+        # Use a generic download name or one provided by the service
+        download_filename = filled_pdf_details.get("download_filename", f"filled_{form_type.replace(' ', '_')}.pdf")
+
+
+        # Schedule cleanup after the file is sent
         @after_this_request
         def cleanup(response):
             try:
-                print(f"Scheduling cleanup for session {session_id} after request.")
+                print(f"Scheduling cleanup for session '{session_id}' after request for form '{form_type}'.")
                 if os.path.exists(filled_pdf_path):
                     os.remove(filled_pdf_path)
                     print(f"Removed specific filled file: {filled_pdf_path}")
+                # Keep cleaning up uploaded session files
                 document_service.cleanup_session_files(session_id)
             except Exception as e:
-                print(f"Error during post-request cleanup for session {session_id}: {e}")
+                print(f"Error during post-request cleanup for session '{session_id}', form '{form_type}': {e}")
             return response
-
-        # Construct download filename based on the template name from .env
-        download_filename = f"filled_{os.path.splitext(PDF_TEMPLATE_NAME)[0]}.pdf" # <--- CHANGED: Dynamic name e.g., filled_i-765.pdf
 
         # Send the file back to the client
         return send_file(
             filled_pdf_path,
             mimetype='application/pdf',
             as_attachment=True,
-            download_name=download_filename # <--- CHANGED
+            download_name=download_filename
         )
 
     except FileNotFoundError as fnf_e:
-        print(f"Fill form error (FileNotFound) for session {session_id}: {fnf_e}")
+        print(f"Fill form error (FileNotFound) for form '{form_type}', session '{session_id}': {fnf_e}")
         document_service.cleanup_session_files(session_id)
         return jsonify({"error": str(fnf_e)}), 404
-    except (ValueError, ConnectionError, RuntimeError, IOError) as service_e:
-        print(f"Fill form error (Service Error) for session {session_id}: {service_e}")
+    except ValueError as ve: # Specific error for unsupported form type from service
+        print(f"Fill form error (ValueError) for form '{form_type}', session '{session_id}': {ve}")
         document_service.cleanup_session_files(session_id)
-        return jsonify({"error": f"Form filling process failed: {service_e}"}), 500
+        return jsonify({"error": str(ve)}), 400 # Bad request if form type is invalid/unsupported
+    except (ConnectionError, RuntimeError, IOError) as service_e: # Broader service errors
+        print(f"Fill form error (Service Error) for form '{form_type}', session '{session_id}': {service_e}")
+        document_service.cleanup_session_files(session_id)
+        return jsonify({"error": f"Form filling process for '{form_type}' failed: {service_e}"}), 500
     except Exception as e:
-        print(f"Unexpected fill form error for session {session_id}: {e}")
+        print(f"Unexpected fill form error for form '{form_type}', session '{session_id}': {e}")
         import traceback
         traceback.print_exc()
         document_service.cleanup_session_files(session_id)
-        return jsonify({"error": "An unexpected error occurred during form filling."}), 500
+        return jsonify({"error": f"An unexpected error occurred during form '{form_type}' filling."}), 500
 
 
 if __name__ == '__main__':
