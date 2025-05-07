@@ -41,10 +41,10 @@ This document consolidates the technical enhancement, user experience (UX), and 
     - `[x]` Install MUI dependencies (`@mui/material`, `@emotion/react`, `@emotion/styled`, `@mui/icons-material`).
     - `[x]` Setup base theme (`theme.js`) with clean/modern palette & typography (using Roboto).
     - `[x]` Apply `ThemeProvider` and `CssBaseline`.
-- `[ ]` **Multi-Form Architecture:** Refactor backend (`form_filler_service`, API) to handle multiple form types dynamically.
-    - `[ ]` Design configuration schema/files for forms (path, fields, types, rules).
-    - `[ ]` Update API to accept/pass `form_type`.
-    - `[ ]` Modify services to load/use configurations dynamically.
+- `[x]` **Multi-Form Architecture:** Refactor backend (`form_filler_service`, API) to handle multiple form types dynamically.
+    - `[x]` Design configuration schema/files for forms (path, fields, types, rules).
+    - `[x]` Update API to accept/pass `form_type`.
+    - `[x]` Modify services to load/use configurations dynamically.
 - `[ ]` **Basic User Accounts & Authentication:** Implement user registration, login, password hashing, session management.
     - `[ ]` Choose & integrate Flask extensions (e.g., Flask-Login, SQLAlchemy, Bcrypt).
     *   `[ ]` Define User model & database setup (with migrations).
