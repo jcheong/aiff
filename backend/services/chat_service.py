@@ -11,9 +11,9 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # Initialize LLM
 try:
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", google_api_key=GOOGLE_API_KEY,
+    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", google_api_key=GOOGLE_API_KEY,
                                  temperature=0.2, convert_system_message_to_human=True)
-    print("Gemini LLM (gemini-1.5-pro) initialized successfully.")
+    print("Gemini LLM (gemini-2.0-flash-lite) initialized successfully.")
 except Exception as e:
     print(f"Error initializing Gemini LLM: {e}")
     # Provide guidance if the API key is likely the issue

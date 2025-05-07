@@ -28,8 +28,8 @@ os.makedirs(FILLED_FORM_FOLDER_ABS, exist_ok=True)
 # --- LLM Initialization ---
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 try:
-    extraction_llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", google_api_key=GOOGLE_API_KEY, temperature=0.0)
-    print("Gemini LLM for extraction (gemini-1.5-pro) initialized.")
+    extraction_llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", google_api_key=GOOGLE_API_KEY, temperature=0.0)
+    print("Gemini LLM for extraction (gemini-2.0-flash-lite) initialized.")
 except Exception as e:
     print(f"Error initializing extraction LLM: {e}")
     extraction_llm = None
