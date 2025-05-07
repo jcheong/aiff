@@ -42,8 +42,8 @@ except Exception as e:
 I765_TARGET_FIELDS = {
     # PDF Keys mapped to descriptions for LLM
     "Line1a_FamilyName[0]": "Your Full Name: Family Name (Last Name)",
-    "Line1b_GivenName[0]": "Your Full Name: Given Name (First Name)",
-    "Line1c_MiddleName[0]": "Your Full Name: Middle Name",
+    "Line1b_GivenName[0]": "Your Full Name: Given Name (First Name). The first word is the Given Name, and the rest of the words are the Middle Name",
+    "Line1c_MiddleName[0]": "Your Full Name: Middle Name. The first word is the Given Name, and the rest of the words are the Middle Name",
 
     "Line9_Checkbox[1]": "Gender - Male Option: Respond with 1 if text indicates Male. Respond with 0 if text indicates Female. Otherwise respond 0. Value has to be a numerical",
     "Line9_Checkbox[0]": "Gender - Female Option: Respond with 1 if text indicates Female. Respond with 0 if text indicates Male. Otherwise respond 0. Value has to be a numerical",
@@ -51,7 +51,7 @@ I765_TARGET_FIELDS = {
     "Line17a_CountryOfBirth[0]": "Your Country or Countries of Citizenship or Nationality. Always determine the country name",
 
     "Line18a_CityTownOfBirth[0]": "Your City of Birth",
-    "Line18b_CityTownOfBirth[0]": "Your State or Province of Birth",
+    "Line18b_CityTownOfBirth[0]": "Your State or Province of Birth. In the absence of a State or Province of Birth, use the Your City and Country of Birth to find it",
     "Line18c_CountryOfBirth[0]": "Your Country of Birth. Always determine the country name",
     "Line19_DOB[0]": "Your Date of Birth. Format MM/DD/YYYY",
 
