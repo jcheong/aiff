@@ -10,10 +10,11 @@ This project is a Minimum Viable Product (MVP) demonstrating the concept of usin
 
 ## MVP Features
 
-*   **Chat Assistant (RAG):** Ask questions about USCIS procedures (specifically related to **pre-loaded I-765 information**) and receive answers generated via Retrieval-Augmented Generation.
+*   **Chat Assistant (RAG):** Ask questions about USCIS procedures (based on pre-loaded information, initially focused on I-765) and receive answers generated via Retrieval-Augmented Generation.
 *   **Document Upload:** Upload supporting documents (PDF, TXT, common image types like PNG, JPG).
 *   **Text Extraction (including OCR):** Extracts text content from uploaded PDF and TXT files. Uses **Google Cloud Vision AI** to perform OCR on uploaded image files.
-*   **Automated Form Filling:** Trigger the filling of **Form I-765** using data extracted by an LLM (Gemini 1.5 Pro) from the aggregated text content of uploaded documents for the current session. Handles mapping for specific fields like gender checkboxes.
+*   **Dynamic Form Listing:** Lists available USCIS forms based on JSON configuration files.
+*   **Automated Form Filling:** Trigger the filling of **any configured USCIS form** (e.g., Form I-765) using data extracted by an LLM (Gemini 1.5 Pro) from the aggregated text content of uploaded documents for the current session. Handles mapping for specific fields as defined in form configurations.
 
 ## Technology Stack
 
@@ -37,7 +38,8 @@ This project is a Minimum Viable Product (MVP) demonstrating the concept of usin
     *   **Cloud Vision API:** Enabled in your GCP project.
     *   **Generative Language API (or Vertex AI):** Enabled for Gemini model access.
 *   **Google Gemini API Key:** Obtain from Google AI Studio or configure access via your GCP project.
-*   **USCIS Form I-765 PDF:** Download the official, fillable Form I-765 PDF from the USCIS website.
+*   **USCIS Form PDFs:** Download official, fillable PDF versions of any forms you intend to support (e.g., I-765) from the USCIS website.
+*   **Form Configuration Files:** Create JSON configuration files for each supported PDF form.
 
 ## Setup Instructions
 
@@ -69,12 +71,13 @@ This project is a Minimum Viable Product (MVP) demonstrating the concept of usin
         ```dotenv
         # backend/.env
         GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY_HERE # Still needed for embedding/LLM if not using ADC for everything
-        PDF_TEMPLATE_DIR=templates
-        PDF_TEMPLATE_NAME=i-765.pdf # Or your exact PDF filename
-        UPLOAD_FOLDER=uploads
-        FILLED_FORM_FOLDER=filled_forms
-        VECTOR_DB_PATH=vector_store_data/chroma_db
-        SAMPLE_DATA_DIR=sample_uscis_data
+        PDF_TEMPLATE_DIR=templates # Relative to backend_dir
+        # PDF_TEMPLATE_NAME is no longer used directly here; form selection is dynamic
+        UPLOAD_FOLDER=uploads # Relative to backend_dir
+        FILLED_FORM_FOLDER=filled_forms # Relative to backend_dir
+        FORM_CONFIGS_DIR=form_configs # Relative to backend_dir
+        VECTOR_DB_PATH=vector_store_data/chroma_db # Relative to backend_dir for load script, absolute in app
+        SAMPLE_DATA_DIR=sample_uscis_data # Relative to backend_dir
         ```
         **Note:** Replace `YOUR_GOOGLE_API_KEY_HERE`. Ensure no quotes around the key.
     *   Navigate back to the **root `aiff/` directory**.
@@ -82,11 +85,31 @@ This project is a Minimum Viable Product (MVP) demonstrating the concept of usin
         ```bash
         # Ensure you are in the root 'aiff/' directory
         mkdir backend/templates
+        mkdir backend/form_configs 
         mkdir backend/sample_uscis_data
-        # Note: uploads, filled_forms, vector_store_data created automatically if needed
+        # Note: uploads, filled_forms, vector_store_data created automatically by the app if needed
         ```
-    *   Place the downloaded fillable `i-765.pdf` (or the filename matching `PDF_TEMPLATE_NAME` in `.env`) inside the `backend/templates/` directory.
-    *   Create a sample FAQ file `backend/sample_uscis_data/sample_faq.txt`. Add relevant Q&A content about Form I-765.
+    *   Place your downloaded fillable PDF forms (e.g., `i-765.pdf`) inside the `backend/templates/` directory.
+    *   For each PDF form in `backend/templates/`, create a corresponding JSON configuration file in `backend/form_configs/`. Example `i-765.json`:
+        ```json
+        // backend/form_configs/i-765.json (example structure)
+        {
+          "form_id": "I-765",
+          "form_name": "Application for Employment Authorization",
+          "pdf_template_filename": "i-765.pdf", // Must match a file in backend/templates/
+          "target_fields": {
+            "Family Name": "form1[0].#subform[0].Pt1Line1a_FamilyName[0]",
+            "Given Name": "form1[0].#subform[0].Pt1Line1b_GivenName[0]",
+            // ... other field mappings ...
+            "Gender Male Checkbox": "form1[0].#subform[0].Checkbox_Male[0]", // Example checkbox field name
+            "Gender Female Checkbox": "form1[0].#subform[0].Checkbox_Female[0]" // Example checkbox field name
+          },
+          "checkbox_true_value": "1", // Value to check a box (e.g., "1", "Yes", "On")
+          "checkbox_false_value": "0" // Value to uncheck a box (e.g., "0", "No", "Off")
+        }
+        ```
+        **Note:** The `target_fields` keys are what the LLM will try to extract. The values are the **exact** field names from your PDF, obtainable using tools that inspect PDF form fields.
+    *   Create a sample FAQ file `backend/sample_uscis_data/sample_faq.txt`. Add relevant Q&A content (e.g., about Form I-765).
     *   **Authenticate for Google Cloud Services:** Run this command in your terminal (you only need to do this once per machine usually):
         ```bash
         gcloud auth application-default login
@@ -99,7 +122,10 @@ This project is a Minimum Viable Product (MVP) demonstrating the concept of usin
         python backend/load_uscis_data.py
         ```
         Verify this script runs without errors. It uses the API key from `.env` for embeddings.
-    *   **(CRITICAL - Manual Step):** Inspect your specific `i-765.pdf` to get the **exact** field names required by `PyPDFForm`. Update the constants (`PDF_MALE_CHECKBOX_KEY`, `PDF_FEMALE_CHECKBOX_KEY`) and the keys within the `I765_TARGET_FIELDS` dictionary in `backend/services/form_filler_service.py` accordingly. Verify the value needed to check boxes (`PDF_CHECKBOX_TRUE_VALUE`, `PDF_CHECKBOX_FALSE_VALUE` - likely '1' and '0').
+    *   **(CRITICAL - Manual Step for Each Form):** For each PDF form you add:
+        1.  Inspect the PDF (e.g., using Adobe Acrobat Pro or an online PDF field inspector) to get the **exact** field names required by `PyPDFForm`.
+        2.  Populate the `target_fields` in its corresponding JSON configuration file (in `backend/form_configs/`) with these exact field names.
+        3.  Verify the `checkbox_true_value` and `checkbox_false_value` required by your specific PDF for checkboxes.
 
 3.  **Frontend Setup:**
     *   Navigate to the frontend directory *from the root*:
@@ -139,19 +165,21 @@ This project is a Minimum Viable Product (MVP) demonstrating the concept of usin
 ## Usage / Basic Test Flow
 
 1.  **Open:** Navigate to `http://localhost:3000`.
-2.  **Chat:** Ask a question related to the I-765 information in your `sample_faq.txt` (e.g., "What documents do I need for I-765?"). Verify a relevant answer is received.
+2.  **Chat:** Ask a question related to the information in your `sample_faq.txt` (e.g., "What documents do I need for I-765?"). Verify a relevant answer is received.
 3.  **Prepare Test Data:** Create:
-    *   A text file (`my_data.txt`) with some sample info.
+    *   A text file (`my_data.txt`) with some sample info relevant to the form you want to fill.
     *   An image file (`my_image.png` or `.jpg`) with *different* sample info (e.g., passport details clearly visible).
 4.  **Upload:** Upload both `my_data.txt` and `my_image.png` using the "Choose File" button. Verify success messages.
-5.  **Fill Form:** Click the "Fill Form I-765" button.
+5.  **List & Fill Form:**
+    *   The application should list available forms (e.g., "Application for Employment Authorization (I-765)").
+    *   Select the desired form and click the corresponding "Fill Form" button (e.g., "Fill Form I-765").
 6.  **Observe:** Monitor the backend logs. Look for:
     *   Text extraction messages for both TXT and Image (mentioning "Google Cloud Vision").
-    *   LLM extraction starting and completing.
+    *   LLM extraction starting and completing (mentioning the selected form type).
     *   "Parsed raw extracted data" log showing data potentially from both files.
-    *   "Final data prepared for PDF filling" log showing the mapped data (e.g., gender checkboxes set to '1'/'0').
+    *   "Final data prepared for PDF filling" log showing the mapped data based on the form's JSON configuration.
     *   PDF filling and saving messages.
-7.  **Download & Verify:** Wait for the `filled_i-765.pdf` download. Open the PDF and **carefully check** if fields are populated correctly, combining data extracted from both the text file and the image via OCR. Verify the gender checkbox.
+7.  **Download & Verify:** Wait for the filled PDF download (e.g., `filled_I-765.pdf`). Open the PDF and **carefully check** if fields are populated correctly, combining data extracted from both the text file and the image via OCR. Verify any checkboxes.
 
 ## Project Structure (Simplified)
 
@@ -161,6 +189,7 @@ This project is a Minimum Viable Product (MVP) demonstrating the concept of usin
 │ ├── utils/ # Utility functions (text extraction with OCR)
 │ ├── vector_store/ # Vector DB interaction (ChromaDB)
 │ ├── templates/ # PDF form templates (e.g., i-765.pdf)
+│ ├── form_configs/ # JSON configurations for each PDF form
 │ ├── sample_uscis_data/ # Sample data for RAG (e.g., sample_faq.txt)
 │ ├── vector_store_data/ # ChromaDB persistent storage (.gitignored)
 │ ├── uploads/ # Temp storage for uploads (.gitignored)
@@ -180,13 +209,13 @@ This project is a Minimum Viable Product (MVP) demonstrating the concept of usin
 
 ## Limitations (Current MVP State)
 
-*   **Single Form:** Only supports automated filling for Form I-765.
+*   **Form Support:** Supports automated filling for any form for which a PDF template and a valid JSON configuration file are provided. The initial example focuses on Form I-765.
 *   **RAG Data Scope:** Chat answers are limited to the pre-loaded content in `sample_faq.txt`.
 *   **OCR Accuracy:** Relies on Google Cloud Vision API accuracy, which can vary based on image quality. Costs associated with Vision API calls.
 *   **LLM Extraction:** Data extraction relies on LLM performance and prompt quality. **User verification of extracted data before relying on the filled form is essential.**
 *   **Basic UI/UX:** Interface is minimal; error handling is basic.
 *   **No User Accounts:** Sessions are temporary; no data is saved persistently for users.
-*   **PDF Field Names:** Requires manual inspection and configuration of PDF field names in the backend code for the specific `i-765.pdf` used.
+*   **PDF Field Names & Configuration:** Requires manual inspection of each PDF to get exact field names and careful creation of a corresponding JSON configuration file in `backend/form_configs/`. Errors in configuration will lead to incorrect form filling.
 
 ## Future Enhancements
 
