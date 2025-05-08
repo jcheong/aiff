@@ -56,13 +56,17 @@ This document outlines planned enhancements focused specifically on improving th
     *   **Action:** (Corresponds to Technical Plan Phase 3) If possible, in the Review & Edit UI, provide a way to show users which part of which uploaded document was used as the source for a specific piece of extracted data.
     *   **Rationale:** Dramatically increases transparency and allows users to quickly verify contested extractions against their source documents.
 
-3.  **Clear Distinction Between Steps:**
-    *   **Action:** Structure the UI to clearly delineate the phases: 1. Chat/Info, 2. Upload Documents, 3. Extract & Review Data, 4. Generate Filled PDF. Guide the user through these steps.
-    *   **Rationale:** Makes the multi-step process less overwhelming and easier to follow.
+3.  **Clear Distinction Between Steps (Guided User Pipeline):**
+    *   **Action:** Implement a guided user pipeline: Structure the UI to clearly delineate and guide the user through the distinct phases of the form-filling process: 1. Initial Consultation/Chat (Optional), 2. Document Upload & Preparation, 3. AI-Powered Data Extraction & User Review/Editing, 4. Final Form Generation & Download. This pipeline aims to make the multi-step process intuitive and ensure all necessary actions are completed.
+    *   **Rationale:** Makes the multi-step process less overwhelming, easier to follow, and ensures a comprehensive completion of the form-filling journey.
 
 4.  **Simplified Document Management:**
     *   **Action:** Display a list of uploaded documents for the current session. Allow users to remove an uploaded document before triggering extraction.
     *   **Rationale:** Gives users more control over the input data.
+
+5.  **AI-Assisted Field-Level Guidance:**
+    *   **Action:** Within the form display (either blank or during the review/edit phase), provide a mechanism (e.g., a help icon next to each form question/field) allowing users to request AI-powered clarification. This AI assistance would explain complex form questions, define terms, or suggest the type of information typically required, drawing from the RAG knowledge base or general LLM capabilities.
+    *   **Rationale:** Directly addresses user confusion with specific form questions, reduces errors, and empowers users to provide more accurate answers, enhancing overall trust and usability.
 
 ---
 
