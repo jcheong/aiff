@@ -255,7 +255,7 @@ def fill_dynamic_form(session_id: str, form_type: str) -> dict:
         pdf_wrapper = FormWrapper(template_path_abs)
         pdf_wrapper.fill(
             data_for_pdf,
-            # adobe_mode=True # Keep if it was beneficial, PyPDFForm default is usually fine
+            adobe_mode=True
         )
 
         with open(output_pdf_path_abs, "wb+") as output_file:
