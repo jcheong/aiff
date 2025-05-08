@@ -14,13 +14,13 @@ This project is a Minimum Viable Product (MVP) demonstrating the concept of usin
 *   **Document Upload:** Upload supporting documents (PDF, TXT, common image types like PNG, JPG).
 *   **Text Extraction (including OCR):** Extracts text content from uploaded PDF and TXT files. Uses **Google Cloud Vision AI** to perform OCR on uploaded image files.
 *   **Dynamic Form Listing:** Lists available USCIS forms based on JSON configuration files.
-*   **Automated Form Filling:** Trigger the filling of **any configured USCIS form** (e.g., Form I-765) using data extracted by an LLM (Gemini 1.5 Pro) from the aggregated text content of uploaded documents for the current session. Handles mapping for specific fields as defined in form configurations.
+*   **Automated Form Filling:** Trigger the filling of **any configured USCIS form** (e.g., Form I-765) using data extracted by an LLM (gemini-2.0-flash-lite) from the aggregated text content of uploaded documents for the current session. Handles mapping for specific fields as defined in form configurations.
 
 ## Technology Stack
 
 *   **Backend:** Python / Flask
 *   **Frontend:** React
-*   **AI / LLM:** Google Gemini 1.5 Pro (via `langchain-google-genai`)
+*   **AI / LLM:** gemini-2.0-flash-lite (via `langchain-google-genai`)
 *   **OCR:** Google Cloud Vision AI API
 *   **RAG Framework:** Langchain
 *   **Vector Database:** ChromaDB (local)
